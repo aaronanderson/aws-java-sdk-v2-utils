@@ -23,7 +23,7 @@ public class ElasticSearchTest {
 
 	private static AwsCredentials credentials;
 
-	@BeforeClass
+	//@BeforeClass
 	public static void setup() {
 		// AWS classes are not required by this utility but they will probably be available in the classpath
 		// and make it easy to lookup credentials
@@ -32,7 +32,7 @@ public class ElasticSearchTest {
 
 	}
 
-	@Test
+	//@Test
 	public void elasticsearchTest() throws Exception {
 		System.out.format("Accessing Elastic Search\n");
 		Client client = ClientBuilder.newClient();
@@ -52,7 +52,7 @@ public class ElasticSearchTest {
 		System.out.format("%d %s", response.getStatus(), response.readEntity(String.class));
 	}
 
-	@Test
+	//@Test
 	public void presignTest() throws Exception {
 		AWSSignerClientRequestFilter signer = AWSSignerClientRequestFilter.builder().accessKeyID(credentials.accessKeyId()).secretAccessKey(credentials.secretAccessKey()).regionName("us-west-1").serviceName("s3").build();
 

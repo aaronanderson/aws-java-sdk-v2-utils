@@ -13,7 +13,7 @@ import software.amazon.awssdk.http.apache.ApacheSdkHttpClientFactory;
 
 public class HTTPSignerTest {
 
-	@Test
+	//@Test
 	public void awsHttpTest() throws Exception {
 		DefaultCredentialsProvider provider = DefaultCredentialsProvider.create();
 		AwsCredentials awsCredentials = provider.getCredentials();

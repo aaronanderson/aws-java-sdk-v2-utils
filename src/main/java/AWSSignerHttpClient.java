@@ -1,15 +1,11 @@
 
-
 import static software.amazon.awssdk.core.config.InternalAdvancedClientOption.CRC32_FROM_COMPRESSED_DATA_ENABLED;
 
-import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.Optional;
 
 import javax.json.Json;
 import javax.json.JsonStructure;
-
-import org.apache.cxf.helpers.IOUtils;
 
 import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkRequestOverrideConfig;
@@ -32,6 +28,7 @@ import software.amazon.awssdk.core.regions.Region;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.utils.IoUtils;
 
 public class AWSSignerHttpClient {
 
@@ -137,7 +134,7 @@ public class AWSSignerHttpClient {
 
 		@Override
 		public SdkException handle(HttpResponse response, ExecutionAttributes executionAttributes) throws Exception {
-			String responseMsg = IOUtils.toString(new InputStreamReader(response.getContent()));
+			String responseMsg = IoUtils.toString(response.getContent());
 			return new SdkClientException(String.format("%d: %s", response.getStatusCode(), responseMsg));
 		}
 
