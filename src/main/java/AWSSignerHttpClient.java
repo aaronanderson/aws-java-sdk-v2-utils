@@ -120,7 +120,6 @@ public class AWSSignerHttpClient {
 
 				@Override
 				public SdkRequestOverrideConfig requestOverrideConfig() {
-					// TODO Auto-generated method stub
 					return null;
 				}
 
@@ -139,7 +138,6 @@ public class AWSSignerHttpClient {
 		@Override
 		public SdkException handle(HttpResponse response, ExecutionAttributes executionAttributes) throws Exception {
 			String responseMsg = IOUtils.toString(new InputStreamReader(response.getContent()));
-			System.out.println(responseMsg);
 			return new SdkClientException(String.format("%d: %s", response.getStatusCode(), responseMsg));
 		}
 
