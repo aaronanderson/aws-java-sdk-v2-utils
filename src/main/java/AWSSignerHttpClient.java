@@ -11,6 +11,7 @@ import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkRequestOverrideConfig;
 import software.amazon.awssdk.core.auth.Aws4Signer;
 import software.amazon.awssdk.core.auth.AwsCredentials;
+import software.amazon.awssdk.core.auth.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.auth.StaticSignerProvider;
 import software.amazon.awssdk.core.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.config.MutableClientConfiguration;
@@ -20,14 +21,17 @@ import software.amazon.awssdk.core.http.AmazonHttpClient;
 import software.amazon.awssdk.core.http.ExecutionContext;
 import software.amazon.awssdk.core.http.HttpResponse;
 import software.amazon.awssdk.core.http.HttpResponseHandler;
+import software.amazon.awssdk.core.http.loader.DefaultSdkHttpClientFactory;
 import software.amazon.awssdk.core.interceptor.AwsExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptorChain;
 import software.amazon.awssdk.core.interceptor.InterceptorContext;
 import software.amazon.awssdk.core.regions.Region;
+import software.amazon.awssdk.core.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.utils.AttributeMap;
 import software.amazon.awssdk.utils.IoUtils;
 
 public class AWSSignerHttpClient {
@@ -70,6 +74,16 @@ public class AWSSignerHttpClient {
 		AWSSignerHttpClient client = new AWSSignerHttpClient();
 
 		public AWSSignerHttpClient build() {
+			if (client.awsCredentials == null) {
+				DefaultCredentialsProvider provider = DefaultCredentialsProvider.create();
+				client.awsCredentials = provider.getCredentials();
+			}
+			if (client.sdkClient == null) {
+				client.sdkClient = new DefaultSdkHttpClientFactory().createHttpClientWithDefaults(AttributeMap.empty());
+			}
+			if (client.region == null) {
+				client.region = new DefaultAwsRegionProviderChain().getRegion();
+			}
 			Aws4Signer signer = new Aws4Signer();
 			signer.setRegionName(client.region.value());
 			signer.setServiceName(client.serviceName);
