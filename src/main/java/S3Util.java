@@ -15,6 +15,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptor;
 import software.amazon.awssdk.core.interceptor.InterceptorContext;
 import software.amazon.awssdk.core.regions.Region;
+import software.amazon.awssdk.core.sync.ResponseInputStream;
 import software.amazon.awssdk.http.Abortable;
 import software.amazon.awssdk.http.AbortableCallable;
 import software.amazon.awssdk.http.AbortableInputStream;
@@ -27,6 +28,7 @@ import software.amazon.awssdk.services.s3.AwsS3V4Signer;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 public class S3Util {
 
@@ -39,7 +41,8 @@ public class S3Util {
 			S3Client s3Client = s3Builder.build();
 
 			GetObjectRequest s3GetRequest = GetObjectRequest.builder().bucket(bucketName).key(fileName).build();
-			s3Client.getObject(s3GetRequest);
+			ResponseInputStream<GetObjectResponse> response = s3Client.getObject(s3GetRequest);
+			response.close();
 
 			return presignInterceptor.getSignedURI();
 		} catch (Throwable t) {

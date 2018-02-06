@@ -11,6 +11,7 @@ import software.amazon.awssdk.core.SdkRequest;
 import software.amazon.awssdk.core.SdkRequestOverrideConfig;
 import software.amazon.awssdk.core.auth.Aws4Signer;
 import software.amazon.awssdk.core.auth.AwsCredentials;
+import software.amazon.awssdk.core.auth.AwsCredentialsProvider;
 import software.amazon.awssdk.core.auth.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.auth.StaticSignerProvider;
 import software.amazon.awssdk.core.config.ClientOverrideConfiguration;
@@ -38,7 +39,7 @@ public class AWSSignerHttpClient {
 
 	private String serviceName;
 	private Region region;
-	private AwsCredentials awsCredentials;
+	private AwsCredentialsProvider awsCredentialsProvider;
 	private SdkHttpClient sdkClient;
 	// required by client to avoid NPE
 	private SdkRequest sdkRequest = new ServiceSDKRequest();
@@ -47,12 +48,12 @@ public class AWSSignerHttpClient {
 	private StaticSignerProvider signingProvider;
 	private ExecutionAttributes executionAttributes;
 
-	private AWSSignerHttpClient() {
-
-	}
-
 	public static Builder builder() {
 		return new Builder();
+	}
+
+	public <T> T execute(SdkHttpFullRequest httpRequest, HttpResponseHandler<T> responseHandler) {
+		return execute(httpRequest, responseHandler, new ErrorHandler());
 	}
 
 	public <T extends JsonStructure> T execute(SdkHttpFullRequest httpRequest) {
@@ -74,9 +75,9 @@ public class AWSSignerHttpClient {
 		AWSSignerHttpClient client = new AWSSignerHttpClient();
 
 		public AWSSignerHttpClient build() {
-			if (client.awsCredentials == null) {
+			if (client.awsCredentialsProvider == null) {
 				DefaultCredentialsProvider provider = DefaultCredentialsProvider.create();
-				client.awsCredentials = provider.getCredentials();
+				client.awsCredentialsProvider = provider;
 			}
 			if (client.sdkClient == null) {
 				client.sdkClient = new DefaultSdkHttpClientFactory().createHttpClientWithDefaults(AttributeMap.empty());
@@ -88,7 +89,7 @@ public class AWSSignerHttpClient {
 			signer.setRegionName(client.region.value());
 			signer.setServiceName(client.serviceName);
 			client.signingProvider = StaticSignerProvider.create(signer);
-			client.executionAttributes = new ExecutionAttributes().putAttribute(AwsExecutionAttributes.AWS_CREDENTIALS, client.awsCredentials);
+			client.executionAttributes = new ExecutionAttributes().putAttribute(AwsExecutionAttributes.AWS_CREDENTIALS, client.awsCredentialsProvider.getCredentials());
 			MutableClientConfiguration clientConfiguration = new MutableClientConfiguration();
 			clientConfiguration.httpClient(client.sdkClient);
 			ClientOverrideConfiguration override = ClientOverrideConfiguration.builder().advancedOption(CRC32_FROM_COMPRESSED_DATA_ENABLED, true).retryPolicy(RetryPolicy.NONE).build();
@@ -112,8 +113,8 @@ public class AWSSignerHttpClient {
 			return this;
 		}
 
-		public Builder awsCredentials(AwsCredentials awsCredentials) {
-			client.awsCredentials = awsCredentials;
+		public Builder awsCredentials(AwsCredentialsProvider awsCredentialsProvider) {
+			client.awsCredentialsProvider = awsCredentialsProvider;
 			return this;
 		}
 	}
