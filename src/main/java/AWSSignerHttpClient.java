@@ -46,7 +46,6 @@ public class AWSSignerHttpClient {
 	private ExecutionInterceptorChain execInterceptorChain = new ExecutionInterceptorChain(Collections.emptyList());
 	private AmazonHttpClient awsClient;
 	private StaticSignerProvider signingProvider;
-	private ExecutionAttributes executionAttributes;
 
 	public static Builder builder() {
 		return new Builder();
@@ -65,6 +64,7 @@ public class AWSSignerHttpClient {
 		ExecutionContext.Builder execContextBuilder = ExecutionContext.builder();
 		execContextBuilder.signerProvider(signingProvider);
 		execContextBuilder.interceptorChain(execInterceptorChain);
+		ExecutionAttributes executionAttributes = new ExecutionAttributes().putAttribute(AwsExecutionAttributes.AWS_CREDENTIALS, awsCredentialsProvider.getCredentials());
 		execContextBuilder.executionAttributes(executionAttributes);
 		execContextBuilder.interceptorContext(incerceptorContext).build();
 		ExecutionContext execContext = execContextBuilder.build();
@@ -88,8 +88,7 @@ public class AWSSignerHttpClient {
 			Aws4Signer signer = new Aws4Signer();
 			signer.setRegionName(client.region.value());
 			signer.setServiceName(client.serviceName);
-			client.signingProvider = StaticSignerProvider.create(signer);
-			client.executionAttributes = new ExecutionAttributes().putAttribute(AwsExecutionAttributes.AWS_CREDENTIALS, client.awsCredentialsProvider.getCredentials());
+			client.signingProvider = StaticSignerProvider.create(signer);			
 			MutableClientConfiguration clientConfiguration = new MutableClientConfiguration();
 			clientConfiguration.httpClient(client.sdkClient);
 			ClientOverrideConfiguration override = ClientOverrideConfiguration.builder().advancedOption(CRC32_FROM_COMPRESSED_DATA_ENABLED, true).retryPolicy(RetryPolicy.NONE).build();
