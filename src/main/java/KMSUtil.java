@@ -7,11 +7,12 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
-import software.amazon.awssdk.services.dynamodb.DynamoDBClient;
+import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
-import software.amazon.awssdk.services.kms.KMSClient;
+import software.amazon.awssdk.services.kms.KmsClient;
 import software.amazon.awssdk.services.kms.model.DecryptRequest;
 import software.amazon.awssdk.services.kms.model.DecryptResponse;
 
@@ -19,17 +20,17 @@ import software.amazon.awssdk.services.kms.model.DecryptResponse;
 //https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#data-keys
 public class KMSUtil {
 	private static SecretKey secret;
-	private static KMSClient kmsClient;
-	private static DynamoDBClient dynamdDBClient;
+	private static KmsClient kmsClient;
+	private static DynamoDbClient dynamdDBClient;
 	private static String dynamoDBTable;
 	private static AttributeValue dynamoDBID;
 	private static String dynamoDBAttr;
 
-	public static void initialize(KMSClient kmsClient) {
+	public static void initialize(KmsClient kmsClient) {
 		KMSUtil.kmsClient = kmsClient;
 	}
 
-	public static void initialize(KMSClient kmsClient, DynamoDBClient dynamdDBClient, String dynamoDBTable, AttributeValue dynamoDBID, String dynamoDBAttr) {
+	public static void initialize(KmsClient kmsClient, DynamoDbClient dynamdDBClient, String dynamoDBTable, AttributeValue dynamoDBID, String dynamoDBAttr) {
 		initialize(kmsClient);
 		KMSUtil.kmsClient = kmsClient;
 		KMSUtil.dynamdDBClient = dynamdDBClient;
@@ -64,9 +65,8 @@ public class KMSUtil {
 				throw new Exception("Uninitialized");
 			}
 			byte[] encryptedBytes = Base64.getDecoder().decode(encrypted);
-			DecryptResponse kmsResponse = kmsClient.decrypt((DecryptRequest.builder().ciphertextBlob(ByteBuffer.wrap(encryptedBytes))).build());
-			final byte[] decBytes = new byte[kmsResponse.plaintext().remaining()];
-			kmsResponse.plaintext().get(decBytes);
+			DecryptResponse kmsResponse = kmsClient.decrypt((DecryptRequest.builder().ciphertextBlob(SdkBytes.fromByteArray(encryptedBytes))).build());
+			final byte[] decBytes = kmsResponse.plaintext().asByteArray();
 
 			secret = new SecretKeySpec(decBytes, "AES");
 		}

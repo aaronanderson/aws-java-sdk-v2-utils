@@ -1,37 +1,34 @@
-
-import static software.amazon.awssdk.core.config.InternalAdvancedClientOption.CRC32_FROM_COMPRESSED_DATA_ENABLED;
-
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 
 import javax.json.Json;
 import javax.json.JsonStructure;
 
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.signer.Aws4Signer;
+import software.amazon.awssdk.auth.signer.AwsSignerExecutionAttribute;
+import software.amazon.awssdk.core.RequestOverrideConfiguration;
+import software.amazon.awssdk.core.SdkField;
 import software.amazon.awssdk.core.SdkRequest;
-import software.amazon.awssdk.core.SdkRequestOverrideConfig;
-import software.amazon.awssdk.core.auth.Aws4Signer;
-import software.amazon.awssdk.core.auth.AwsCredentials;
-import software.amazon.awssdk.core.auth.AwsCredentialsProvider;
-import software.amazon.awssdk.core.auth.DefaultCredentialsProvider;
-import software.amazon.awssdk.core.auth.StaticSignerProvider;
-import software.amazon.awssdk.core.config.ClientOverrideConfiguration;
-import software.amazon.awssdk.core.config.MutableClientConfiguration;
-import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.core.client.config.SdkClientConfiguration;
+import software.amazon.awssdk.core.client.config.SdkClientOption;
 import software.amazon.awssdk.core.exception.SdkException;
-import software.amazon.awssdk.core.http.AmazonHttpClient;
 import software.amazon.awssdk.core.http.ExecutionContext;
-import software.amazon.awssdk.core.http.HttpResponse;
 import software.amazon.awssdk.core.http.HttpResponseHandler;
-import software.amazon.awssdk.core.http.loader.DefaultSdkHttpClientFactory;
-import software.amazon.awssdk.core.interceptor.AwsExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptorChain;
 import software.amazon.awssdk.core.interceptor.InterceptorContext;
-import software.amazon.awssdk.core.regions.Region;
-import software.amazon.awssdk.core.regions.providers.DefaultAwsRegionProviderChain;
+import software.amazon.awssdk.core.internal.http.AmazonSyncHttpClient;
+import software.amazon.awssdk.core.internal.http.loader.DefaultSdkHttpClientBuilder;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
+import software.amazon.awssdk.http.SdkHttpFullResponse;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.utils.AttributeMap;
 import software.amazon.awssdk.utils.IoUtils;
 
@@ -44,8 +41,12 @@ public class AWSSignerHttpClient {
 	// required by client to avoid NPE
 	private SdkRequest sdkRequest = new ServiceSDKRequest();
 	private ExecutionInterceptorChain execInterceptorChain = new ExecutionInterceptorChain(Collections.emptyList());
-	private AmazonHttpClient awsClient;
-	private StaticSignerProvider signingProvider;
+	private AmazonSyncHttpClient awsClient;
+	private Aws4Signer signer;
+
+	private AWSSignerHttpClient() {
+
+	}
 
 	public static Builder builder() {
 		return new Builder();
@@ -62,9 +63,12 @@ public class AWSSignerHttpClient {
 	public <T> T execute(SdkHttpFullRequest httpRequest, HttpResponseHandler<T> responseHandler, HttpResponseHandler<? extends SdkException> errorHandler) {
 		InterceptorContext incerceptorContext = InterceptorContext.builder().request(sdkRequest).httpRequest(httpRequest).build();
 		ExecutionContext.Builder execContextBuilder = ExecutionContext.builder();
-		execContextBuilder.signerProvider(signingProvider);
+		execContextBuilder.signer(signer);
 		execContextBuilder.interceptorChain(execInterceptorChain);
-		ExecutionAttributes executionAttributes = new ExecutionAttributes().putAttribute(AwsExecutionAttributes.AWS_CREDENTIALS, awsCredentialsProvider.getCredentials());
+		ExecutionAttributes executionAttributes = new ExecutionAttributes();
+		executionAttributes.putAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS, awsCredentialsProvider.resolveCredentials());
+		executionAttributes.putAttribute(AwsSignerExecutionAttribute.SERVICE_SIGNING_NAME, serviceName);
+		executionAttributes.putAttribute(AwsSignerExecutionAttribute.SIGNING_REGION, region);
 		execContextBuilder.executionAttributes(executionAttributes);
 		execContextBuilder.interceptorContext(incerceptorContext).build();
 		ExecutionContext execContext = execContextBuilder.build();
@@ -80,20 +84,19 @@ public class AWSSignerHttpClient {
 				client.awsCredentialsProvider = provider;
 			}
 			if (client.sdkClient == null) {
-				client.sdkClient = new DefaultSdkHttpClientFactory().createHttpClientWithDefaults(AttributeMap.empty());
+				client.sdkClient = new DefaultSdkHttpClientBuilder().buildWithDefaults(AttributeMap.empty());
 			}
+
 			if (client.region == null) {
 				client.region = new DefaultAwsRegionProviderChain().getRegion();
 			}
-			Aws4Signer signer = new Aws4Signer();
-			signer.setRegionName(client.region.value());
-			signer.setServiceName(client.serviceName);
-			client.signingProvider = StaticSignerProvider.create(signer);			
-			MutableClientConfiguration clientConfiguration = new MutableClientConfiguration();
-			clientConfiguration.httpClient(client.sdkClient);
-			ClientOverrideConfiguration override = ClientOverrideConfiguration.builder().advancedOption(CRC32_FROM_COMPRESSED_DATA_ENABLED, true).retryPolicy(RetryPolicy.NONE).build();
-			clientConfiguration.overrideConfiguration(override);
-			client.awsClient = new AmazonHttpClient(clientConfiguration);
+			client.signer = Aws4Signer.create();
+			// signer.setRegionName(client.region.value());
+			// signer.setServiceName(client.serviceName);
+			// client.signingProvider = StaticSignerProvider.create(signer);
+			SdkClientConfiguration clientConfiguration = SdkClientConfiguration.builder().option(SdkClientOption.ADDITIONAL_HTTP_HEADERS, new LinkedHashMap<>()).option(SdkClientOption.CRC32_FROM_COMPRESSED_DATA_ENABLED, true).option(SdkClientOption.SYNC_HTTP_CLIENT, client.sdkClient)
+					.option(SdkClientOption.RETRY_POLICY, RetryPolicy.none()).build();
+			client.awsClient = new AmazonSyncHttpClient(clientConfiguration);
 			return client;
 		}
 
@@ -121,7 +124,7 @@ public class AWSSignerHttpClient {
 	public static class ServiceSDKRequest extends SdkRequest {
 
 		@Override
-		public Optional<? extends SdkRequestOverrideConfig> requestOverrideConfig() {
+		public Optional<? extends RequestOverrideConfiguration> overrideConfiguration() {
 			return Optional.empty();
 		}
 
@@ -130,7 +133,7 @@ public class AWSSignerHttpClient {
 			return new Builder() {
 
 				@Override
-				public SdkRequestOverrideConfig requestOverrideConfig() {
+				public RequestOverrideConfiguration overrideConfiguration() {
 					return null;
 				}
 
@@ -142,14 +145,19 @@ public class AWSSignerHttpClient {
 			};
 		}
 
+		@Override
+		public List<SdkField<?>> sdkFields() {
+			return Collections.unmodifiableList(Collections.emptyList());
+		}
+
 	}
 
 	public static class ErrorHandler implements HttpResponseHandler<SdkException> {
 
 		@Override
-		public SdkException handle(HttpResponse response, ExecutionAttributes executionAttributes) throws Exception {
-			String responseMsg = IoUtils.toString(response.getContent());
-			return new SdkClientException(String.format("%d: %s", response.getStatusCode(), responseMsg));
+		public SdkException handle(SdkHttpFullResponse response, ExecutionAttributes executionAttributes) throws Exception {
+			String responseMsg = response.content().isPresent() ? IoUtils.toUtf8String(response.content().get()) : "";
+			return SdkException.builder().message(String.format("%d: %s", response.statusCode(), responseMsg)).build();
 		}
 
 	}
@@ -157,9 +165,8 @@ public class AWSSignerHttpClient {
 	public static class JsonHandler<T extends JsonStructure> implements HttpResponseHandler<T> {
 
 		@Override
-		public T handle(HttpResponse response, ExecutionAttributes executionAttributes) throws Exception {
-			JsonStructure responseValue = Json.createReader(response.getContent()).read();
-			return (T) responseValue;
+		public T handle(SdkHttpFullResponse response, ExecutionAttributes executionAttributes) throws Exception {
+			return response.content().isPresent() ? (T) Json.createReader(response.content().get()).read() : null;
 		}
 
 	}
