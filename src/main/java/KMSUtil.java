@@ -80,7 +80,7 @@ public class KMSUtil {
 
 	public static final String encrypt(String value) throws Exception {
 		loadEncryptionKey();
-		Cipher cipher = Cipher.getInstance("AES");
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 		cipher.init(Cipher.ENCRYPT_MODE, secret);
 		byte[] secureReturnURL = cipher.doFinal(value.getBytes());
 		return Base64.getEncoder().encodeToString(secureReturnURL);
@@ -89,7 +89,7 @@ public class KMSUtil {
 	public static final String decrypt(String value) throws Exception {
 		loadEncryptionKey();
 		byte[] secureReturnURL = Base64.getDecoder().decode(value);
-		Cipher cipher = Cipher.getInstance("AES");
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 		cipher.init(Cipher.DECRYPT_MODE, secret);
 		secureReturnURL = cipher.doFinal(secureReturnURL);
 		return new String(secureReturnURL);
