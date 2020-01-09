@@ -22,6 +22,7 @@ import software.amazon.awssdk.core.interceptor.ExecutionAttributes;
 import software.amazon.awssdk.core.interceptor.ExecutionInterceptorChain;
 import software.amazon.awssdk.core.interceptor.InterceptorContext;
 import software.amazon.awssdk.core.internal.http.AmazonSyncHttpClient;
+import software.amazon.awssdk.core.internal.http.CombinedResponseHandler;
 import software.amazon.awssdk.core.internal.http.loader.DefaultSdkHttpClientBuilder;
 import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
@@ -32,7 +33,7 @@ import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.utils.AttributeMap;
 import software.amazon.awssdk.utils.IoUtils;
 
-public class AWSSignerHttpClient {
+public class AWSSignerHttpClient implements AutoCloseable {
 
 	private String serviceName;
 	private Region region;
@@ -72,7 +73,7 @@ public class AWSSignerHttpClient {
 		execContextBuilder.executionAttributes(executionAttributes);
 		execContextBuilder.interceptorContext(incerceptorContext).build();
 		ExecutionContext execContext = execContextBuilder.build();
-		return awsClient.requestExecutionBuilder().executionContext(execContext).originalRequest(sdkRequest).errorResponseHandler(errorHandler).request(httpRequest).execute(responseHandler);
+		return awsClient.requestExecutionBuilder().executionContext(execContext).originalRequest(sdkRequest).request(httpRequest).execute(new CombinedResponseHandler<T>(responseHandler, errorHandler));
 	}
 
 	public static class Builder {
@@ -94,8 +95,7 @@ public class AWSSignerHttpClient {
 			// signer.setRegionName(client.region.value());
 			// signer.setServiceName(client.serviceName);
 			// client.signingProvider = StaticSignerProvider.create(signer);
-			SdkClientConfiguration clientConfiguration = SdkClientConfiguration.builder().option(SdkClientOption.ADDITIONAL_HTTP_HEADERS, new LinkedHashMap<>()).option(SdkClientOption.CRC32_FROM_COMPRESSED_DATA_ENABLED, true).option(SdkClientOption.SYNC_HTTP_CLIENT, client.sdkClient)
-					.option(SdkClientOption.RETRY_POLICY, RetryPolicy.none()).build();
+			SdkClientConfiguration clientConfiguration = SdkClientConfiguration.builder().option(SdkClientOption.ADDITIONAL_HTTP_HEADERS, new LinkedHashMap<>()).option(SdkClientOption.CRC32_FROM_COMPRESSED_DATA_ENABLED, true).option(SdkClientOption.SYNC_HTTP_CLIENT, client.sdkClient).option(SdkClientOption.RETRY_POLICY, RetryPolicy.none()).build();
 			client.awsClient = new AmazonSyncHttpClient(clientConfiguration);
 			return client;
 		}
@@ -168,6 +168,12 @@ public class AWSSignerHttpClient {
 		public T handle(SdkHttpFullResponse response, ExecutionAttributes executionAttributes) throws Exception {
 			return response.content().isPresent() ? (T) Json.createReader(response.content().get()).read() : null;
 		}
+
+	}
+
+	@Override
+	public void close() {
+		awsClient.close();
 
 	}
 }

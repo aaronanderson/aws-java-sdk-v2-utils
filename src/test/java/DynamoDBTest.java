@@ -1,5 +1,5 @@
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.math.BigInteger;
 import java.util.HashMap;
@@ -13,7 +13,7 @@ import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
