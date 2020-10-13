@@ -62,6 +62,10 @@ public class AWSSignerHttpClient implements AutoCloseable {
         return execute(httpRequest, requestBody, responseHandler, new ErrorHandler());
     }
 
+    public <T> T execute(SdkHttpFullRequest httpRequest, HttpResponseHandler<T> responseHandler) {
+        return execute(httpRequest, null, responseHandler, new ErrorHandler());
+    }
+
     public <T extends JsonStructure> T execute(SdkHttpFullRequest httpRequest, RequestBody requestBody) {
         return execute(httpRequest, requestBody, new JsonHandler<T>(), new ErrorHandler());
     }
