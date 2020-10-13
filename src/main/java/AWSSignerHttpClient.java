@@ -28,6 +28,7 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.SdkHttpFullRequest;
 import software.amazon.awssdk.http.SdkHttpFullResponse;
+import software.amazon.awssdk.metrics.NoOpMetricCollector;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.utils.AttributeMap;
@@ -66,6 +67,7 @@ public class AWSSignerHttpClient implements AutoCloseable {
 		ExecutionContext.Builder execContextBuilder = ExecutionContext.builder();
 		execContextBuilder.signer(signer);
 		execContextBuilder.interceptorChain(execInterceptorChain);
+		execContextBuilder.metricCollector(NoOpMetricCollector.create());
 		ExecutionAttributes executionAttributes = new ExecutionAttributes();
 		executionAttributes.putAttribute(AwsSignerExecutionAttribute.AWS_CREDENTIALS, awsCredentialsProvider.resolveCredentials());
 		executionAttributes.putAttribute(AwsSignerExecutionAttribute.SERVICE_SIGNING_NAME, serviceName);
