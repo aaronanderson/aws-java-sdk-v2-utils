@@ -58,24 +58,16 @@ public class AWSSignerHttpClient implements AutoCloseable {
         return new Builder();
     }
 
-    public <T> T execute(SdkHttpFullRequest httpRequest, RequestBody requestBody, HttpResponseHandler<T> responseHandler) {
-        return execute(httpRequest, requestBody, responseHandler, new ErrorHandler());
-    }
-
     public <T> T execute(SdkHttpFullRequest httpRequest, HttpResponseHandler<T> responseHandler) {
-        return execute(httpRequest, null, responseHandler, new ErrorHandler());
-    }
-
-    public <T extends JsonStructure> T execute(SdkHttpFullRequest httpRequest, RequestBody requestBody) {
-        return execute(httpRequest, requestBody, new JsonHandler<T>(), new ErrorHandler());
+        return execute(httpRequest, responseHandler, new ErrorHandler());
     }
 
     public <T extends JsonStructure> T execute(SdkHttpFullRequest httpRequest) {
-        return execute(httpRequest, null, new JsonHandler<T>(), new ErrorHandler());
+        return execute(httpRequest, new JsonHandler<T>(), new ErrorHandler());
     }
 
-    public <T> T execute(SdkHttpFullRequest httpRequest, RequestBody requestBody, HttpResponseHandler<T> responseHandler, HttpResponseHandler<? extends SdkException> errorHandler) {
-        InterceptorContext incerceptorContext = InterceptorContext.builder().requestBody(requestBody).request(sdkRequest).httpRequest(httpRequest).build();
+    public <T> T execute(SdkHttpFullRequest httpRequest, HttpResponseHandler<T> responseHandler, HttpResponseHandler<? extends SdkException> errorHandler) {
+        InterceptorContext incerceptorContext = InterceptorContext.builder().request(sdkRequest).httpRequest(httpRequest).build();
         ExecutionContext.Builder execContextBuilder = ExecutionContext.builder();
         execContextBuilder.signer(signer);
         execContextBuilder.interceptorChain(execInterceptorChain);
